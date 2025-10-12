@@ -1,0 +1,1154 @@
+******************************************************************
+      * Author:      Employee Management System
+      * Date:        2025
+      * Purpose:     Employee Data Management System
+      * Tectonics:   cobc
+      ******************************************************************
+       IDENTIFICATION DIVISION.
+       PROGRAM-ID. FINAL-PROJECT.
+
+       ENVIRONMENT DIVISION.
+       INPUT-OUTPUT SECTION.
+       FILE-CONTROL.
+           SELECT USER-FILE ASSIGN TO "USER_FILE.DAT"
+               ORGANIZATION IS LINE SEQUENTIAL.
+           SELECT EMPLOYEE-MASTER-FILE ASSIGN TO "EMPLOYEE.DAT"
+               ORGANIZATION IS INDEXED
+               ACCESS MODE IS DYNAMIC
+               RECORD KEY IS EMP-ID.
+           SELECT TRANSECTION-FILE ASSIGN TO "EMPLOYEE_UPD.TXT"
+               ORGANIZATION IS LINE SEQUENTIAL
+               FILE STATUS IS WS-FILE-STATUS.
+           SELECT BACKUP-FILE ASSIGN TO "EMPLOYEE_BACKUP.TXT"
+               ORGANIZATION IS LINE SEQUENTIAL.
+           SELECT REPORT-FILE ASSIGN TO "EMPLOYEE_REPORT.TXT"
+               ORGANIZATION IS LINE SEQUENTIAL.
+            SELECT SORT-AREA ASSIGN TO "temp.tmp".
+
+       DATA DIVISION.
+       FILE SECTION.
+       FD USER-FILE.
+       01 USER-RECORD.
+           05 USER-NAME    PIC X(15).
+           05 USER-PASS    PIC X(10).
+           05 USER-ROLE    PIC X(7).
+
+       FD EMPLOYEE-MASTER-FILE.
+       01 EMPLOYEE-MASTER-FILE-RECORD.
+           05 EMP-ID      PIC 9(5).
+           05 EMP-NAME    PIC X(30).
+           05 EMP-DEPART  PIC X(10).
+           05 EMP-SALARY  PIC 9(7)V99.
+
+       FD TRANSECTION-FILE.
+       01 TRANSECTION-FILE-RECORD.
+           05 TR-EMP-ID    PIC 9(5).
+           05 TR-CODE      PIC X(2).
+           05 TR-NEW-DATA  PIC X(100).
+
+       FD BACKUP-FILE.
+       01 BACKUP-RECORD         PIC X(150).
+
+       FD REPORT-FILE.
+       01 REPORT-LINE           PIC X(150).
+
+       SD  SORT-AREA.
+       01  SORT-AREA-RECORD.
+           05 S-EMP-ID      PIC 9(5).
+           05 S-EMP-NAME    PIC X(30).
+           05 S-EMP-DEPART  PIC X(10).
+           05 S-EMP-SALARY  PIC 9(7)V99.
+
+       WORKING-STORAGE SECTION.
+       01 WS-FLAG.
+           05 WS-EOF-FLAG              PIC X VALUE 'N'.
+           05 WS-FOUND-USERNAME-FLAG   PIC X VALUE 'N'.
+           05 WS-FOUND-EMP-FLAG        PIC X VALUE 'N'.
+           05 WS-PASSWORD-CORRECT-FLAG PIC X VALUE 'N'.
+           05 WS-USER-CHOICE           PIC 9 VALUE 0.
+           05 WS-TR-CODE               PIC X(2).
+           05 WS-DELETE-CONFIRM        PIC X.
+           05 WS-FILE-STATUS           PIC XX.
+
+       01 LOG-IN-FUNCTION.
+           05 INPUT-LOG-IN.
+               10 LOGIN-USERNAME   PIC X(15).
+               10 LOGIN-PASS       PIC X(8).
+           05 WS-LOG-IN.
+               10 NOW-USER     PIC X(15).
+               10 NOW-ROLE     PIC X(7).
+
+       01 ADD-NEW-EMPLOYEE-FUNCTION.
+           05 NEW-EMP-ID       PIC 9(5).
+           05 INPUT-ADD-NEW-EMPLOYEE.
+               10 NEW-EMP-NAME     PIC X(30).
+               10 NEW-EMP-DEPART   PIC X(10).
+               10 NEW-EMP-SALARY   PIC 9(7)V99.
+           05 DISPLAY-NEW-EMPLOYEE.
+               10 DISPLAY-NEW-EMP-ID       PIC 9(5).
+               10 DISPLAY-NEW-EMP-NAME     PIC X(30).
+               10 DISPLAY-NEW-EMP-DEPART   PIC X(10).
+               10 DISPLAY-NEW-EMP-SALARY   PIC Z,ZZZ,ZZZ.ZZ.
+
+       01 EDIT-EMPLOYEE-FUNCTION.
+           05 INPUT-EDIT-EMPLOYEE.
+               10 EDIT-CHOICE         PIC 9.
+               10 EDIT-SALARY-CHOICE  PIC 9.
+               10 EDIT-EMP-ID         PIC 9(5).
+               10 EDIT-EMP-NAME       PIC X(30).
+               10 EDIT-EMP-DEPART     PIC X(10).
+               10 EDIT-EMP-SALARY     PIC X(9).
+           05 DISPLAY-EDIT-EMPLOYEE.
+               10 DISPLAY-EDIT-EMP-SALARY    PIC Z,ZZZ,ZZZ.ZZ.
+
+       01 DELETE-EMPLOYEE-FUNCTION.
+           05 DELETE-EMP-ID        PIC 9(5).
+
+       01 SEARCH-EMPLOYEE-FUNCTION.
+           05 SEARCH-CHOICE        PIC 9.
+           05 SEARCH-EMP-ID        PIC 9(5).
+           05 SEARCH-EMP-NAME      PIC X(30).
+           05 SEARCH-EMP-DEPART    PIC X(10).
+
+       01 REPORT-COUNTERS.
+           05 WS-TOTAL-EMPLOYEES   PIC 9(5) VALUE 0.
+           05 WS-TOTAL-SALARY      PIC 9(10)V99 VALUE 0.
+           05 WS-AVG-SALARY        PIC 9(8)V99 VALUE 0.
+           05 WS-DEPT-COUNT        PIC 9(5) VALUE 0.
+
+       01 REPORT-DISPLAY.
+           05 DISP-TOTAL-EMP       PIC Z,ZZ9.
+           05 DISP-TOTAL-SALARY    PIC ZZ,ZZZ,ZZZ,ZZ9.99.
+           05 DISP-AVG-SALARY      PIC Z,ZZZ,ZZ9.99.
+           05 DISP-DEPT-COUNT      PIC Z,ZZ9.
+
+       01 WS-INDEX            PIC 9(2).
+       01 WS-IND-FROM         PIC Z9.
+       01 WS-SALA-FROM        PIC ZZ,ZZZ,ZZ9.99.
+       01 WS-CURRENT-DATE.
+           05 CURRENT-DATE-TIME        PIC X(21).
+           05 CURRENT-YEAR             PIC 9(4).
+           05 CURRENT-MONTH            PIC 9(2).
+           05 CURRENT-DAY              PIC 9(2).
+           05 CURRENT-HOUR             PIC 9(2).
+           05 CURRENT-MINUTE           PIC 9(2).
+           05 CURRENT-SECOND           PIC 9(2).
+           05 REAL-CURRENT-TIME        PIC X(40).
+      *>      ที่เพิ่มมา
+       01  No-zero-EMP-SALARY          PIC ZZ,ZZZ,ZZZ.ZZ.
+       
+       01  DOME-DISPLAY-TOTAL-SALARY    PIC Z,ZZZ,ZZZ.99.
+       01  ALL-DISP-TOTAL-SALARY        PIC ZZZ,ZZZ,ZZZ.99.    
+       
+       01  COMPANY-NAME              PIC X(17) VALUE "CS Corporation".
+       01  SPACEBAR                  PIC X(10) VALUE "          ".
+       01  COMPANY-NAME1             PIC X(70)
+       VALUE  "          Employee expense summary report by Department".
+       
+       01  WS-PAGE-NUMBER           PIC ZZZ9 VALUE 1.
+       01  WS-PAGE-NUMBER-D         PIC ZZZ9 VALUE 1.
+       01  DEPT-HEADER              PIC X(20) VALUE
+       "Dept             ".
+       01  DEPT-EMP-HEADER          PIC X(40) VALUE
+       "       Employee Amount        "  .
+
+       01  DEPT-SALARY-HEADER       PIC X(40) VALUE
+        "Total dept salary".
+
+       01  WS-EOF-SORT              PIC X VALUE 'N'.
+       01  WS-PREV-DEPT             PIC X(10).
+       01  WS-GRP-COUNT             PIC 9(5)     VALUE 0.
+       01  WS-GRP-SUM               PIC 9(10)V99 VALUE 0.
+
+       01  BK-REC.
+           05 BK-ID                  PIC 9(5).
+           05 BK-NAME                PIC X(30).
+           05 BK-DEPT                PIC X(10).
+           05 BK-SALARY              PIC 9(7)V99.
+           
+       01  dummy       pic x(1).
+      *>     *****************************************
+
+
+       01  I-DEPT                   PIC 9(3).
+       01  FOUND-DEPT-FLAG          PIC X VALUE 'N'.
+
+       01  WS-HEADER-LINE.
+           05 FILLER           PIC X(5)   VALUE "=====".
+           05 FILLER           PIC X(2)   VALUE SPACES.
+           05 FILLER           PIC X(93)  VALUE
+           "======== TRANSACTION PROCESSED ========".
+           05 FILLER           PIC X(7)   VALUE SPACES.
+
+
+       PROCEDURE DIVISION.
+       MAIN-PROCEDURE.
+            DISPLAY "=============================================".
+            DISPLAY "  WELCOME TO Employee Data Management System ".
+            DISPLAY "=============================================".
+            PERFORM LOG-IN.
+            STOP RUN.
+
+       LOG-IN.
+            MOVE 'N' TO WS-EOF-FLAG.
+            MOVE 'N' TO WS-FOUND-USERNAME-FLAG.
+            MOVE 'N' TO WS-PASSWORD-CORRECT-FLAG.
+            DISPLAY " ".
+            DISPLAY "Please log in before using the system.".
+            DISPLAY "Enter your username : ".
+            ACCEPT LOGIN-USERNAME.
+
+            OPEN INPUT USER-FILE.
+            PERFORM UNTIL WS-EOF-FLAG = 'Y'
+               READ USER-FILE
+                    AT END
+                       MOVE 'Y' TO WS-EOF-FLAG
+                    NOT AT END
+                       IF LOGIN-USERNAME = USER-NAME
+                           MOVE 'Y' TO WS-FOUND-USERNAME-FLAG
+                           MOVE USER-NAME TO NOW-USER
+                       END-IF
+               END-READ
+            END-PERFORM.
+            CLOSE USER-FILE.
+
+            IF WS-FOUND-USERNAME-FLAG = 'N'
+                DISPLAY "Username not found. Please try again."
+                DISPLAY " "
+                PERFORM LOG-IN
+            END-IF.
+
+            DISPLAY "Enter your password : ".
+            ACCEPT LOGIN-PASS.
+            MOVE 'N' TO WS-EOF-FLAG.
+
+            OPEN INPUT USER-FILE.
+            PERFORM UNTIL WS-EOF-FLAG = 'Y'
+               READ USER-FILE
+                    AT END
+                       MOVE 'Y' TO WS-EOF-FLAG
+                    NOT AT END
+                       IF NOW-USER = USER-NAME
+                           IF LOGIN-PASS = USER-PASS
+                               MOVE 'Y' TO WS-PASSWORD-CORRECT-FLAG
+                               MOVE USER-ROLE TO NOW-ROLE
+                               DISPLAY " "
+                               DISPLAY "Login successful!!"
+                               DISPLAY "Welcome " NOW-USER
+                               DISPLAY "You are " USER-ROLE
+                               DISPLAY " "
+                           END-IF
+                       END-IF
+               END-READ
+            END-PERFORM.
+            CLOSE USER-FILE.
+
+            IF WS-PASSWORD-CORRECT-FLAG = 'N'
+               DISPLAY "Your password is incorrect. Please try again."
+               DISPLAY " "
+               PERFORM LOG-IN
+            END-IF.
+            PERFORM CHOOSE-MENU.
+
+       CHOOSE-MENU.
+            IF NOW-ROLE = "HR" OR NOW-ROLE = "MANAGER"
+                EVALUATE NOW-ROLE
+                   WHEN "HR"       PERFORM MENU-FOR-HR
+                   WHEN "MANAGER"  PERFORM MENU-FOR-MANAGER
+                END-EVALUATE
+            ELSE
+                DISPLAY "You don't have permission to do this."
+            END-IF.
+
+       MENU-FOR-HR.
+            DISPLAY "===========================================".
+            DISPLAY "          MENU FOR HUMAN RESOURCES         ".
+            DISPLAY "===========================================".
+            DISPLAY "1. Add New Employee".
+            DISPLAY "2. Edit Employee Information".
+            DISPLAY "3. Delete Employee".
+            DISPLAY "4. Search Employee".
+            DISPLAY "5. Process Records".
+            DISPLAY "6. Generate All Employee Report".
+            DISPLAY "7. Generate Salary/Employee Summary Report".
+            DISPLAY "8. Export Backup Data".
+            DISPLAY "0. Exit Program".
+            DISPLAY " ".
+            DISPLAY
+            "Please press 5 for Process Records before exit program".
+            DISPLAY "--------------------------------------------".
+            DISPLAY "Enter your choice (0-8): ".
+            ACCEPT WS-USER-CHOICE.
+
+            EVALUATE WS-USER-CHOICE
+               WHEN 1 PERFORM ADD-NEW-EMPLOYEE
+               WHEN 2 PERFORM EDIT-EMPLOYEE
+               WHEN 3 PERFORM DELETE-EMPLOYEE
+               WHEN 4 PERFORM SEARCH-EMPLOYEE
+               WHEN 5 PERFORM PROCESS-EMPLOYEE
+               WHEN 6 PERFORM GENERATE-ALL-REPORT
+               WHEN 7 PERFORM GENERATE-SUMMARY-REPORT
+               WHEN 8 PERFORM EXPORT-BACKUP
+               WHEN 0
+                   DISPLAY "Exiting program... Goodbye!"
+                   STOP RUN
+               WHEN OTHER
+                   DISPLAY "Invalid choice. Please try again."
+                   PERFORM MENU-FOR-HR
+            END-EVALUATE.
+
+       MENU-FOR-MANAGER.
+            DISPLAY "============================================".
+            DISPLAY "              MENU FOR MANAGER              ".
+            DISPLAY "============================================".
+            DISPLAY "1. Search Employee".
+            DISPLAY "2. Generate All Employee Report".
+            DISPLAY "3. Generate Salary/Employee Summary Report".
+            DISPLAY "0. Exit Program".
+            DISPLAY "--------------------------------------------".
+            DISPLAY "Enter your choice (0-3): ".
+            ACCEPT WS-USER-CHOICE.
+
+            EVALUATE WS-USER-CHOICE
+               WHEN 1 PERFORM SEARCH-EMPLOYEE
+               WHEN 2 PERFORM GENERATE-ALL-REPORT
+               WHEN 3 PERFORM GENERATE-SUMMARY-REPORT
+               WHEN 0
+                   DISPLAY "Exiting program... Goodbye!"
+                   STOP RUN
+               WHEN OTHER
+                   DISPLAY "Invalid choice. Please try again."
+                   PERFORM MENU-FOR-MANAGER
+            END-EVALUATE.
+
+       ADD-NEW-EMPLOYEE.
+            DISPLAY "--------------------------------------------".
+            DISPLAY "              ADD NEW EMPLOYEE              ".
+            DISPLAY "--------------------------------------------".
+            DISPLAY "Enter employee ID: ".
+            ACCEPT NEW-EMP-ID.
+
+            MOVE 'N' TO WS-EOF-FLAG.
+            MOVE 'N' TO WS-FOUND-EMP-FLAG.
+
+            OPEN INPUT EMPLOYEE-MASTER-FILE.
+            PERFORM UNTIL WS-EOF-FLAG = 'Y' OR WS-FOUND-EMP-FLAG = 'Y'
+               READ EMPLOYEE-MASTER-FILE
+                    AT END
+                       MOVE 'Y' TO WS-EOF-FLAG
+                    NOT AT END
+                       IF NEW-EMP-ID = EMP-ID
+                           MOVE 'Y' TO WS-FOUND-EMP-FLAG
+                       END-IF
+               END-READ
+            END-PERFORM.
+            CLOSE EMPLOYEE-MASTER-FILE.
+
+            MOVE 'N' TO WS-EOF-FLAG.
+            OPEN INPUT TRANSECTION-FILE.
+            IF WS-FILE-STATUS = "00"
+                PERFORM UNTIL WS-EOF-FLAG = 'Y' OR
+                    WS-FOUND-EMP-FLAG = 'Y'
+                   READ TRANSECTION-FILE
+                        AT END
+                           MOVE 'Y' TO WS-EOF-FLAG
+                        NOT AT END
+                           IF NEW-EMP-ID = TR-EMP-ID AND
+                               TR-CODE = "AD"
+                               MOVE 'Y' TO WS-FOUND-EMP-FLAG
+                           END-IF
+                   END-READ
+                END-PERFORM
+            END-IF.
+            CLOSE TRANSECTION-FILE.
+
+            IF WS-FOUND-EMP-FLAG = 'N'
+               DISPLAY "Enter employee name: "
+               ACCEPT NEW-EMP-NAME
+               DISPLAY "Enter employee department: "
+               ACCEPT NEW-EMP-DEPART
+               DISPLAY "Enter employee salary: "
+               ACCEPT NEW-EMP-SALARY
+
+               MOVE NEW-EMP-ID TO TR-EMP-ID
+               MOVE "AD" TO TR-CODE
+               MOVE INPUT-ADD-NEW-EMPLOYEE TO TR-NEW-DATA
+
+               OPEN EXTEND TRANSECTION-FILE
+               IF WS-FILE-STATUS = "35" OR WS-FILE-STATUS = "30"
+                   OPEN OUTPUT TRANSECTION-FILE
+               END-IF
+               WRITE TRANSECTION-FILE-RECORD
+               CLOSE TRANSECTION-FILE
+
+               DISPLAY " "
+               DISPLAY "Transaction recorded! Press 5 to process."
+               DISPLAY " "
+            ELSE
+                DISPLAY " "
+                DISPLAY "Employee ID " NEW-EMP-ID " already exists."
+                DISPLAY " "
+            END-IF.
+            PERFORM CHOOSE-MENU.
+
+       EDIT-EMPLOYEE.
+            DISPLAY "=================================================".
+            DISPLAY "            EDIT EMPLOYEE INFORMATION            ".
+            DISPLAY "=================================================".
+            DISPLAY "What information do you want to edit?".
+            DISPLAY " (1) Employee Name".
+            DISPLAY " (2) Employee Department".
+            DISPLAY " (3) Employee Salary".
+            DISPLAY " (4) Back To Menu".
+            DISPLAY "Enter your choice (1-4): ".
+            ACCEPT EDIT-CHOICE.
+
+            EVALUATE EDIT-CHOICE
+               WHEN 1
+                   MOVE "EN" TO WS-TR-CODE
+                   DISPLAY "-------------------------------------------"
+                   DISPLAY "      YOU SELECTED: EDIT EMPLOYEE NAME     "
+                   DISPLAY "-------------------------------------------"
+                   DISPLAY "Enter Employee ID: "
+                   ACCEPT EDIT-EMP-ID
+                   PERFORM CHECK-EMP-EXISTS
+                   IF WS-FOUND-EMP-FLAG = 'Y'
+                       DISPLAY "Enter New Name: "
+                       ACCEPT EDIT-EMP-NAME
+                       MOVE EDIT-EMP-ID TO TR-EMP-ID
+                       MOVE WS-TR-CODE TO TR-CODE
+                       MOVE EDIT-EMP-NAME TO TR-NEW-DATA
+                       OPEN EXTEND TRANSECTION-FILE
+                       IF WS-FILE-STATUS = "35" OR
+                           WS-FILE-STATUS = "30"
+                           OPEN OUTPUT TRANSECTION-FILE
+                       END-IF
+                       WRITE TRANSECTION-FILE-RECORD
+                       CLOSE TRANSECTION-FILE
+                       DISPLAY " "
+                     DISPLAY "Transaction recorded! Press 5 to process."
+                       DISPLAY " "
+                   ELSE
+                       DISPLAY " "
+                       DISPLAY "This ID does not exist."
+                       DISPLAY "You must add it or try again."
+                       DISPLAY " "
+                   END-IF
+               WHEN 2
+                   MOVE "ED" TO WS-TR-CODE
+                   DISPLAY "-------------------------------------------"
+                   DISPLAY "   YOU SELECTED: EDIT EMPLOYEE DEPARTMENT  "
+                   DISPLAY "-------------------------------------------"
+                   DISPLAY "Enter Employee ID: "
+                   ACCEPT EDIT-EMP-ID
+                   PERFORM CHECK-EMP-EXISTS
+                   IF WS-FOUND-EMP-FLAG = 'Y'
+                       DISPLAY "Enter New Department: "
+                       ACCEPT EDIT-EMP-DEPART
+
+                       MOVE EDIT-EMP-ID TO TR-EMP-ID
+                       MOVE WS-TR-CODE TO TR-CODE
+                       MOVE EDIT-EMP-DEPART TO TR-NEW-DATA
+
+                       OPEN EXTEND TRANSECTION-FILE
+                       IF WS-FILE-STATUS = "35" OR WS-FILE-STATUS = "30"
+                           OPEN OUTPUT TRANSECTION-FILE
+                       END-IF
+                       WRITE TRANSECTION-FILE-RECORD
+                       CLOSE TRANSECTION-FILE
+
+                     DISPLAY " "
+                     DISPLAY "Transaction recorded! Press 5 to process."
+                     DISPLAY " "
+                   ELSE
+                       DISPLAY " "
+                       DISPLAY "This ID does not exist."
+                       DISPLAY "You must add it or try again."
+                       DISPLAY " "
+                   END-IF
+               WHEN 3
+                   MOVE "ES" TO WS-TR-CODE
+                   DISPLAY "-------------------------------------------"
+                   DISPLAY "     YOU SELECTED: EDIT EMPLOYEE SALARY    "
+                   DISPLAY "-------------------------------------------"
+                   DISPLAY "Enter Employee ID: "
+                   ACCEPT EDIT-EMP-ID
+                   PERFORM CHECK-EMP-EXISTS
+                   IF WS-FOUND-EMP-FLAG = 'Y'
+                       DISPLAY "Enter New Salary: "
+                       ACCEPT EDIT-EMP-SALARY
+
+                       MOVE EDIT-EMP-ID TO TR-EMP-ID
+                       MOVE WS-TR-CODE TO TR-CODE
+                       MOVE EDIT-EMP-SALARY TO TR-NEW-DATA
+
+                       OPEN EXTEND TRANSECTION-FILE
+                       IF WS-FILE-STATUS = "35" OR WS-FILE-STATUS = "30"
+                           OPEN OUTPUT TRANSECTION-FILE
+                           CLOSE TRANSECTION-FILE
+                           OPEN EXTEND TRANSECTION-FILE
+                       END-IF
+                       WRITE TRANSECTION-FILE-RECORD
+                       CLOSE TRANSECTION-FILE
+
+                     DISPLAY " "
+                     DISPLAY "Transaction recorded! Press 5 to process."
+                     DISPLAY " "
+                   ELSE
+                       DISPLAY " "
+                       DISPLAY "This ID does not exist."
+                       DISPLAY "You must add it or try again."
+                       DISPLAY " "
+                   END-IF
+               WHEN 4
+                   PERFORM CHOOSE-MENU
+               WHEN OTHER
+                   DISPLAY "Invalid choice. Please try again."
+                   PERFORM EDIT-EMPLOYEE
+            END-EVALUATE.
+            PERFORM CHOOSE-MENU.
+
+       CHECK-EMP-EXISTS.
+            MOVE 'N' TO WS-FOUND-EMP-FLAG.
+            MOVE 'N' TO WS-EOF-FLAG.
+
+            OPEN INPUT EMPLOYEE-MASTER-FILE.
+            PERFORM UNTIL WS-EOF-FLAG = 'Y'
+               READ EMPLOYEE-MASTER-FILE
+                   AT END
+                       MOVE 'Y' TO WS-EOF-FLAG
+                   NOT AT END
+                       IF EDIT-EMP-ID = EMP-ID
+                           MOVE 'Y' TO WS-FOUND-EMP-FLAG
+                       END-IF
+               END-READ
+            END-PERFORM.
+            CLOSE EMPLOYEE-MASTER-FILE.
+
+            MOVE 'N' TO WS-EOF-FLAG.
+            OPEN INPUT TRANSECTION-FILE.
+            IF WS-FILE-STATUS = "00"
+                PERFORM UNTIL WS-EOF-FLAG = 'Y'
+                   READ TRANSECTION-FILE
+                       AT END
+                           MOVE 'Y' TO WS-EOF-FLAG
+                       NOT AT END
+                           IF EDIT-EMP-ID = TR-EMP-ID AND
+                               TR-CODE = "AD"
+                               MOVE 'Y' TO WS-FOUND-EMP-FLAG
+                           END-IF
+                   END-READ
+                END-PERFORM
+            END-IF.
+            CLOSE TRANSECTION-FILE.
+
+       DELETE-EMPLOYEE.
+            DISPLAY "================================================="
+            "=================================================".
+            DISPLAY "              "
+            "                     DELETE EMPLOYEE INFORMATION "
+                    "                                                 ".
+            DISPLAY "================================================="
+            "=================================================".
+            MOVE 'N' TO WS-EOF-FLAG.
+            MOVE 0 TO WS-INDEX.
+
+            OPEN INPUT EMPLOYEE-MASTER-FILE.
+            PERFORM UNTIL WS-EOF-FLAG = 'Y'
+               READ EMPLOYEE-MASTER-FILE NEXT RECORD
+                   AT END
+                       MOVE 'Y' TO WS-EOF-FLAG
+                   NOT AT END
+                       ADD 1 TO WS-INDEX
+                       MOVE WS-INDEX TO WS-IND-FROM
+                       MOVE EMP-SALARY TO WS-SALA-FROM
+                       DISPLAY WS-IND-FROM ". ID: " EMP-ID
+                       ", Name: " EMP-NAME ", Department: " EMP-DEPART
+                       ", Salary: " WS-SALA-FROM
+               END-READ
+            END-PERFORM.
+            CLOSE EMPLOYEE-MASTER-FILE.
+
+            DISPLAY " ".
+            DISPLAY "Which employee would you like to delete?".
+            DISPLAY "Enter employee ID: ".
+            ACCEPT DELETE-EMP-ID.
+
+            MOVE 'N' TO WS-FOUND-EMP-FLAG.
+            MOVE 'N' TO WS-EOF-FLAG.
+
+            OPEN INPUT EMPLOYEE-MASTER-FILE.
+            PERFORM UNTIL WS-EOF-FLAG = 'Y'
+               READ EMPLOYEE-MASTER-FILE
+                   AT END
+                       MOVE 'Y' TO WS-EOF-FLAG
+                   NOT AT END
+                       IF DELETE-EMP-ID = EMP-ID
+                           MOVE 'Y' TO WS-FOUND-EMP-FLAG
+                       END-IF
+               END-READ
+            END-PERFORM.
+            CLOSE EMPLOYEE-MASTER-FILE.
+
+            MOVE 'N' TO WS-EOF-FLAG.
+            OPEN INPUT TRANSECTION-FILE.
+            IF WS-FILE-STATUS = "00"
+                PERFORM UNTIL WS-EOF-FLAG = 'Y'
+                   READ TRANSECTION-FILE
+                       AT END
+                           MOVE 'Y' TO WS-EOF-FLAG
+                       NOT AT END
+                           IF DELETE-EMP-ID = TR-EMP-ID AND
+                               TR-CODE = "AD"
+                               MOVE 'Y' TO WS-FOUND-EMP-FLAG
+                           END-IF
+                   END-READ
+                END-PERFORM
+            END-IF.
+            CLOSE TRANSECTION-FILE.
+
+            IF WS-FOUND-EMP-FLAG = 'Y'
+                DISPLAY " "
+                DISPLAY "Are you sure you want to delete this employee?"
+                DISPLAY "Enter Y to confirm, N to cancel: "
+                ACCEPT WS-DELETE-CONFIRM
+                IF WS-DELETE-CONFIRM = 'Y' OR WS-DELETE-CONFIRM = 'y'
+                    MOVE DELETE-EMP-ID TO TR-EMP-ID
+                    MOVE "DE" TO TR-CODE
+                    MOVE SPACES TO TR-NEW-DATA
+
+                    OPEN EXTEND TRANSECTION-FILE
+                    IF WS-FILE-STATUS = "35" OR WS-FILE-STATUS = "30"
+                        OPEN OUTPUT TRANSECTION-FILE
+                    END-IF
+                    WRITE TRANSECTION-FILE-RECORD
+                    CLOSE TRANSECTION-FILE
+
+                    DISPLAY " "
+                    DISPLAY "Transaction recorded! Press 5 to process."
+                    DISPLAY " "
+                ELSE
+                    DISPLAY " "
+                    DISPLAY "Deletion cancelled."
+                    DISPLAY " "
+                END-IF
+            ELSE
+                DISPLAY " "
+                DISPLAY "Employee ID " DELETE-EMP-ID " not found."
+                DISPLAY " "
+            END-IF.
+            PERFORM CHOOSE-MENU.
+
+       SEARCH-EMPLOYEE.
+            DISPLAY "=================================================".
+            DISPLAY "              SEARCH EMPLOYEE                    ".
+            DISPLAY "=================================================".
+            DISPLAY "Search by:".
+            DISPLAY " (1) Employee ID".
+            DISPLAY " (2) Employee Name".
+            DISPLAY " (3) Department".
+            DISPLAY " (4) Back to Menu".
+            DISPLAY "Enter your choice (1-4): ".
+            ACCEPT SEARCH-CHOICE.
+
+            EVALUATE SEARCH-CHOICE
+               WHEN 1
+                   DISPLAY "Enter Employee ID: "
+                   ACCEPT SEARCH-EMP-ID
+                   PERFORM SEARCH-BY-ID
+               WHEN 2
+                   DISPLAY "Enter Employee Name: "
+                   ACCEPT SEARCH-EMP-NAME
+                   PERFORM SEARCH-BY-NAME
+               WHEN 3
+                   DISPLAY "Enter Department: "
+                   ACCEPT SEARCH-EMP-DEPART
+                   PERFORM SEARCH-BY-DEPARTMENT
+               WHEN 4
+                   PERFORM CHOOSE-MENU
+               WHEN OTHER
+                   DISPLAY "Invalid choice. Please try again."
+                   PERFORM SEARCH-EMPLOYEE
+            END-EVALUATE.
+            PERFORM CHOOSE-MENU.
+
+       SEARCH-BY-ID.
+            MOVE 'N' TO WS-FOUND-EMP-FLAG.
+            MOVE 'N' TO WS-EOF-FLAG.
+
+            OPEN INPUT EMPLOYEE-MASTER-FILE.
+            PERFORM UNTIL WS-EOF-FLAG = 'Y'
+               READ EMPLOYEE-MASTER-FILE
+                   AT END
+                       MOVE 'Y' TO WS-EOF-FLAG
+                   NOT AT END
+                       IF SEARCH-EMP-ID = EMP-ID
+                           MOVE 'Y' TO WS-FOUND-EMP-FLAG
+                           MOVE EMP-SALARY TO WS-SALA-FROM
+                          DISPLAY " "
+                          DISPLAY "------------------------------------"
+                          DISPLAY "Employee Found:"
+                          DISPLAY "------------------------------------"
+                          DISPLAY "ID         : " EMP-ID
+                          DISPLAY "Name       : " EMP-NAME
+                         DISPLAY "Department : " EMP-DEPART
+                          DISPLAY "Salary     : " WS-SALA-FROM
+                          DISPLAY "------------------------------------"
+                          DISPLAY " "
+                       END-IF
+               END-READ
+            END-PERFORM.
+            CLOSE EMPLOYEE-MASTER-FILE.
+
+            IF WS-FOUND-EMP-FLAG = 'N'
+                DISPLAY " "
+                DISPLAY "Employee ID " SEARCH-EMP-ID " not found."
+                DISPLAY " "
+            END-IF.
+
+       SEARCH-BY-NAME.
+            MOVE 'N' TO WS-FOUND-EMP-FLAG.
+            MOVE 'N' TO WS-EOF-FLAG.
+
+            DISPLAY " ".
+            DISPLAY "Search Results:".
+            DISPLAY "------------------------------------"
+            "------------------------------------"
+            "---------------".
+
+            OPEN INPUT EMPLOYEE-MASTER-FILE.
+            PERFORM UNTIL WS-EOF-FLAG = 'Y'
+               READ EMPLOYEE-MASTER-FILE
+                   AT END
+                       MOVE 'Y' TO WS-EOF-FLAG
+                   NOT AT END
+                       IF EMP-NAME = SEARCH-EMP-NAME
+                           MOVE 'Y' TO WS-FOUND-EMP-FLAG
+                           MOVE EMP-SALARY TO WS-SALA-FROM
+                           DISPLAY "ID: " EMP-ID ", Name: " EMP-NAME
+                           ", Dept: " EMP-DEPART ", Salary: "
+                           WS-SALA-FROM
+                       END-IF
+               END-READ
+            END-PERFORM.
+            CLOSE EMPLOYEE-MASTER-FILE.
+
+            DISPLAY "------------------------------------"
+            "------------------------------------"
+            "---------------".
+
+            IF WS-FOUND-EMP-FLAG = 'N'
+                DISPLAY "No employees found with name: " SEARCH-EMP-NAME
+            END-IF.
+            DISPLAY " ".
+
+       SEARCH-BY-DEPARTMENT.
+            MOVE 'N' TO WS-FOUND-EMP-FLAG.
+            MOVE 'N' TO WS-EOF-FLAG.
+
+            DISPLAY " ".
+            DISPLAY "Employees in     " SEARCH-EMP-DEPART " Department".
+            DISPLAY "------------------------------------"
+            "------------------------------------" 
+            "---------------".
+
+            OPEN INPUT EMPLOYEE-MASTER-FILE.
+            PERFORM UNTIL WS-EOF-FLAG = 'Y'
+               READ EMPLOYEE-MASTER-FILE
+                   AT END
+                       MOVE 'Y' TO WS-EOF-FLAG
+                   NOT AT END
+                       IF EMP-DEPART = SEARCH-EMP-DEPART
+                           MOVE 'Y' TO WS-FOUND-EMP-FLAG
+                           MOVE EMP-SALARY TO WS-SALA-FROM
+                           DISPLAY "ID: " EMP-ID ", Name: " EMP-NAME
+                           ", Salary: " WS-SALA-FROM
+                       END-IF
+               END-READ
+            END-PERFORM.
+            CLOSE EMPLOYEE-MASTER-FILE.
+
+            DISPLAY "------------------------------------"
+            "------------------------------------" 
+            "---------------".
+
+            IF WS-FOUND-EMP-FLAG = 'N'
+                DISPLAY "No employees found in department: "
+                SEARCH-EMP-DEPART
+            END-IF.
+            DISPLAY " ".
+
+       PROCESS-EMPLOYEE.
+            DISPLAY "=================================================".
+            DISPLAY "           PROCESSING TRANSACTIONS               ".
+            DISPLAY "=================================================".
+            MOVE 'N' TO WS-EOF-FLAG.
+            MOVE 0 TO WS-INDEX.
+
+            OPEN INPUT TRANSECTION-FILE.
+            IF WS-FILE-STATUS NOT = "00"
+                DISPLAY "No transaction file found or file is empty."
+                CLOSE TRANSECTION-FILE
+                DISPLAY " "
+                PERFORM CHOOSE-MENU
+            END-IF.
+
+            PERFORM UNTIL WS-EOF-FLAG = 'Y'
+               READ TRANSECTION-FILE
+                   AT END
+                       MOVE 'Y' TO WS-EOF-FLAG
+                   NOT AT END
+                       ADD 1 TO WS-INDEX
+                       DISPLAY "Processing transaction #" WS-INDEX
+                           ": ID=" TR-EMP-ID " Code=" TR-CODE
+                       EVALUATE TR-CODE
+                           WHEN "AD"
+                               PERFORM PROCESS-ADD
+                           WHEN "EN"
+                               PERFORM PROCESS-EDIT-NAME
+                           WHEN "ED"
+                               PERFORM PROCESS-EDIT-DEPT
+                           WHEN "ES"
+                               PERFORM PROCESS-EDIT-SALARY
+                           WHEN "DE"
+                               PERFORM PROCESS-DELETE
+                           WHEN OTHER
+                               DISPLAY "Unknown transaction code: "
+                                   TR-CODE
+                       END-EVALUATE
+               END-READ
+            END-PERFORM.
+            CLOSE TRANSECTION-FILE.
+
+            IF WS-INDEX > 0
+                OPEN OUTPUT TRANSECTION-FILE
+                CLOSE TRANSECTION-FILE
+                PERFORM WRITE-HEADER
+                DISPLAY " "
+                DISPLAY "Processed " WS-INDEX " transaction(s)."
+                DISPLAY "All changes saved to master file!"
+                DISPLAY " "
+            ELSE
+                DISPLAY " "
+                DISPLAY "No transactions to process."
+                DISPLAY " "
+            END-IF.
+            PERFORM CHOOSE-MENU.
+
+       PROCESS-ADD.
+            MOVE TR-EMP-ID TO EMP-ID.
+            MOVE TR-NEW-DATA TO INPUT-ADD-NEW-EMPLOYEE.
+            MOVE NEW-EMP-NAME TO EMP-NAME.
+            MOVE NEW-EMP-DEPART TO EMP-DEPART.
+            MOVE NEW-EMP-SALARY TO EMP-SALARY.
+
+            OPEN I-O EMPLOYEE-MASTER-FILE.
+            WRITE EMPLOYEE-MASTER-FILE-RECORD
+                INVALID KEY
+                    DISPLAY "Error adding employee ID: " EMP-ID
+            END-WRITE.
+            CLOSE EMPLOYEE-MASTER-FILE.
+
+            DISPLAY "Added employee ID: " EMP-ID.
+
+       PROCESS-EDIT-NAME.
+            MOVE TR-EMP-ID TO EMP-ID.
+
+            OPEN I-O EMPLOYEE-MASTER-FILE.
+            READ EMPLOYEE-MASTER-FILE
+                INVALID KEY
+                    DISPLAY "Employee ID " EMP-ID " not found for edit"
+                NOT INVALID KEY
+                    MOVE TR-NEW-DATA(1:30) TO EMP-NAME
+                    REWRITE EMPLOYEE-MASTER-FILE-RECORD
+                    DISPLAY "Updated name for employee ID: " EMP-ID
+            END-READ.
+            CLOSE EMPLOYEE-MASTER-FILE.
+
+       PROCESS-EDIT-DEPT.
+            MOVE TR-EMP-ID TO EMP-ID.
+
+            OPEN I-O EMPLOYEE-MASTER-FILE.
+            READ EMPLOYEE-MASTER-FILE
+                INVALID KEY
+                    DISPLAY "Employee ID " EMP-ID " not found for edit"
+                NOT INVALID KEY
+                    MOVE TR-NEW-DATA(1:10) TO EMP-DEPART
+                    REWRITE EMPLOYEE-MASTER-FILE-RECORD
+                   DISPLAY "Updated department for employee ID: " EMP-ID
+            END-READ.
+            CLOSE EMPLOYEE-MASTER-FILE.
+
+       PROCESS-EDIT-SALARY.
+            MOVE TR-EMP-ID TO EMP-ID.
+
+            OPEN I-O EMPLOYEE-MASTER-FILE.
+            READ EMPLOYEE-MASTER-FILE
+                INVALID KEY
+                    DISPLAY "Employee ID " EMP-ID " not found for edit"
+                NOT INVALID KEY
+                    MOVE TR-NEW-DATA(1:9) TO EMP-SALARY
+                    REWRITE EMPLOYEE-MASTER-FILE-RECORD
+                    DISPLAY "Updated salary for employee ID: " EMP-ID
+            END-READ.
+            CLOSE EMPLOYEE-MASTER-FILE.
+
+       PROCESS-DELETE.
+            MOVE TR-EMP-ID TO EMP-ID.
+
+            OPEN I-O EMPLOYEE-MASTER-FILE.
+            DELETE EMPLOYEE-MASTER-FILE
+                INVALID KEY
+                   DISPLAY "Employee ID " EMP-ID " not found for delete"
+                NOT INVALID KEY
+                    DISPLAY "Deleted employee ID: " EMP-ID
+            END-DELETE.
+            CLOSE EMPLOYEE-MASTER-FILE.
+
+       WRITE-HEADER.
+           MOVE "99999" TO TR-EMP-ID.
+           MOVE "HD" TO TR-CODE.
+           MOVE "======== TRANSACTION PROCESSED ========"
+               TO TR-NEW-DATA.
+           OPEN EXTEND TRANSECTION-FILE.
+           WRITE TRANSECTION-FILE-RECORD.
+           CLOSE TRANSECTION-FILE.
+
+       GET-CURRENT-DATE.
+
+           MOVE FUNCTION CURRENT-DATE TO CURRENT-DATE-TIME.
+
+
+           MOVE CURRENT-DATE-TIME(1:4) TO CURRENT-YEAR
+           MOVE CURRENT-DATE-TIME(5:2) TO CURRENT-MONTH
+           MOVE CURRENT-DATE-TIME(7:2) TO CURRENT-DAY
+           MOVE CURRENT-DATE-TIME(9:2) TO CURRENT-HOUR
+           MOVE CURRENT-DATE-TIME(11:2) TO CURRENT-MINUTE
+           MOVE CURRENT-DATE-TIME(13:2) TO CURRENT-SECOND.
+
+
+           STRING CURRENT-YEAR DELIMITED BY SIZE
+              "/" DELIMITED BY SIZE
+              CURRENT-MONTH DELIMITED BY SIZE
+              "/" DELIMITED BY SIZE
+              CURRENT-DAY DELIMITED BY SIZE
+              "  Time: " DELIMITED BY SIZE
+              CURRENT-HOUR DELIMITED BY SIZE
+              ":" DELIMITED BY SIZE
+              CURRENT-MINUTE DELIMITED BY SIZE
+              ":" DELIMITED BY SIZE
+              CURRENT-SECOND DELIMITED BY SIZE
+              INTO REAL-CURRENT-TIME
+           END-STRING.
+      *>          DISPLAY REAL-CURRENT-TIME.
+       GENERATE-ALL-REPORT.
+           DISPLAY " ".
+           DISPLAY " ".
+
+           DISPLAY "CS Corporation"
+           DISPLAY "                               ALL EMPLOYEE REPORT"
+
+           PERFORM GET-CURRENT-DATE.
+           DISPLAY "Date: " REAL-CURRENT-TIME       
+           "                                 Page: "WS-PAGE-NUMBER.
+           DISPLAY "================================================="
+           "========================================="
+           DISPLAY " ".
+           DISPLAY "Employee ID             Name                       "
+           "   Dept      Salary (Per Month)".
+           DISPLAY "-------------           --------                  "
+           "    ------    --------------------"
+
+           OPEN INPUT EMPLOYEE-MASTER-FILE
+           MOVE 'N' TO WS-EOF-FLAG
+           MOVE 0 TO EMP-ID
+            START EMPLOYEE-MASTER-FILE KEY IS NOT LESS THAN EMP-ID
+                INVALID KEY MOVE 'Y' TO WS-EOF-FLAG.
+
+           PERFORM UNTIL WS-EOF-FLAG = 'Y'
+
+               READ EMPLOYEE-MASTER-FILE  NEXT RECORD
+
+               AT END MOVE
+                   'Y' TO WS-EOF-FLAG
+               NOT AT END
+               MOVE EMP-SALARY TO No-zero-EMP-SALARY
+                   DISPLAY EMP-ID "                   "
+                   EMP-NAME EMP-DEPART
+
+                   No-zero-EMP-SALARY
+               END-READ
+           END-PERFORM.
+
+           DISPLAY " ".
+           DISPLAY "================================================="
+           "========================================="
+
+           DISPLAY "Press Enter to continue !".
+           ACCEPT dummy.
+           CLOSE EMPLOYEE-MASTER-FILE.
+           PERFORM CHOOSE-MENU.
+       GENERATE-SUMMARY-REPORT.
+           DISPLAY " ".
+           DISPLAY " ".
+
+           DISPLAY COMPANY-NAME
+           DISPLAY SPACEBAR COMPANY-NAME1
+
+           PERFORM GET-CURRENT-DATE.
+           DISPLAY "Date: " REAL-CURRENT-TIME       
+           "                                 Page: "WS-PAGE-NUMBER-D.
+
+
+           DISPLAY "================================================="
+           "========================================="
+           DISPLAY " ".
+           DISPLAY DEPT-HEADER
+                   DEPT-EMP-HEADER
+                   DEPT-SALARY-HEADER
+
+           DISPLAY "------                     ------------------    "
+           "           -------------------"
+           MOVE 0 TO WS-TOTAL-EMPLOYEES
+                     WS-TOTAL-SALARY
+           SORT SORT-AREA ON ASCENDING KEY S-EMP-DEPART
+           INPUT PROCEDURE  IS LOAD-SORT
+           OUTPUT PROCEDURE IS PRINT-DEPT.
+
+
+           *> แสดง ทั้งหมด
+           MOVE WS-TOTAL-EMPLOYEES TO DISP-TOTAL-EMP
+           MOVE WS-TOTAL-SALARY    TO DOME-DISPLAY-TOTAL-SALARY
+           MOVE DOME-DISPLAY-TOTAL-SALARY TO ALL-DISP-TOTAL-SALARY
+           DISPLAY "---------------------------------------------------"
+           "---------------------------------------".
+           DISPLAY "All Total :                   " DISP-TOTAL-EMP
+           "                      " ALL-DISP-TOTAL-SALARY.
+
+           DISPLAY "================================================="
+           "=========================================".
+
+           DISPLAY "Press Enter to continue !".
+           ACCEPT dummy.
+           PERFORM CHOOSE-MENU.
+
+       EXPORT-BACKUP.
+            DISPLAY "Exporting backup to EMPLOYEE_BACKUP.TXT ...".
+            
+            OPEN OUTPUT BACKUP-FILE
+            OPEN INPUT  EMPLOYEE-MASTER-FILE
+            
+            MOVE 'N' TO WS-EOF-FLAG
+            MOVE 0   TO EMP-ID
+            
+            START EMPLOYEE-MASTER-FILE KEY IS NOT LESS THAN EMP-ID
+                INVALID KEY MOVE 'Y' TO WS-EOF-FLAG
+            END-START
+
+            PERFORM UNTIL WS-EOF-FLAG = 'Y'
+               READ EMPLOYEE-MASTER-FILE NEXT RECORD
+                  AT END
+                     MOVE 'Y' TO WS-EOF-FLAG
+                  NOT AT END
+
+                     MOVE EMP-ID      TO BK-ID
+                     MOVE EMP-NAME    TO BK-NAME
+                     MOVE EMP-DEPART  TO BK-DEPT
+                     MOVE EMP-SALARY  TO BK-SALARY
+
+                     STRING BK-ID BK-NAME BK-DEPT BK-SALARY
+                       DELIMITED BY SIZE
+                       INTO BACKUP-RECORD
+                     END-STRING
+
+                     WRITE BACKUP-RECORD
+               END-READ
+            END-PERFORM
+
+            CLOSE EMPLOYEE-MASTER-FILE.
+            CLOSE BACKUP-FILE.
+            DISPLAY "Backup completed.".
+            PERFORM CHOOSE-MENU.
+
+
+       LOAD-SORT.
+
+           MOVE 'N' TO WS-EOF-FLAG.
+           OPEN INPUT EMPLOYEE-MASTER-FILE.
+           MOVE 0 TO EMP-ID.
+           START EMPLOYEE-MASTER-FILE KEY IS NOT LESS THAN EMP-ID
+               INVALID KEY MOVE 'Y' TO WS-EOF-FLAG
+           END-START.
+
+           PERFORM UNTIL WS-EOF-FLAG = 'Y'
+              READ EMPLOYEE-MASTER-FILE NEXT RECORD
+                 AT END
+                    MOVE 'Y' TO WS-EOF-FLAG
+                 NOT AT END
+                    MOVE EMP-ID      TO S-EMP-ID
+                    MOVE EMP-NAME    TO S-EMP-NAME
+                    MOVE EMP-DEPART  TO S-EMP-DEPART
+                    
+                    MOVE FUNCTION UPPER-CASE(EMP-DEPART) TO S-EMP-DEPART
+
+                    MOVE EMP-SALARY  TO S-EMP-SALARY
+                    RELEASE SORT-AREA-RECORD
+              END-READ
+           END-PERFORM.
+
+           CLOSE EMPLOYEE-MASTER-FILE.
+           EXIT.
+
+       PRINT-DEPT.
+
+           MOVE 'N' TO WS-EOF-SORT.
+           MOVE 0   TO WS-TOTAL-EMPLOYEES WS-TOTAL-SALARY.
+
+           RETURN SORT-AREA
+              AT END
+                 MOVE 'Y' TO WS-EOF-SORT
+           END-RETURN.
+
+           IF WS-EOF-SORT = 'Y'
+              EXIT PARAGRAPH
+           END-IF.
+
+           MOVE S-EMP-DEPART TO WS-PREV-DEPT.
+
+           PERFORM UNTIL WS-EOF-SORT = 'Y'
+              MOVE 0 TO WS-GRP-COUNT WS-GRP-SUM
+
+
+              PERFORM UNTIL WS-EOF-SORT = 'Y'
+                         OR S-EMP-DEPART NOT = WS-PREV-DEPT
+                 ADD 1            TO WS-GRP-COUNT
+                 ADD S-EMP-SALARY TO WS-GRP-SUM
+
+                 ADD 1            TO WS-TOTAL-EMPLOYEES
+                 ADD S-EMP-SALARY TO WS-TOTAL-SALARY
+
+                 RETURN SORT-AREA
+                    AT END
+                       MOVE 'Y' TO WS-EOF-SORT
+                    NOT AT END
+                       CONTINUE
+                 END-RETURN
+              END-PERFORM
+
+
+              MOVE WS-GRP-COUNT TO DISP-TOTAL-EMP
+              MOVE WS-GRP-SUM   TO DOME-DISPLAY-TOTAL-SALARY
+              DISPLAY "[" FUNCTION UPPER-CASE(WS-PREV-DEPT) "]"
+              DISPLAY "All dept: " FUNCTION UPPER-CASE(WS-PREV-DEPT)
+                      "          " DISP-TOTAL-EMP
+                     "                        "DOME-DISPLAY-TOTAL-SALARY
+              DISPLAY " "
+
+              IF WS-EOF-SORT NOT = 'Y'
+                 MOVE S-EMP-DEPART TO WS-PREV-DEPT
+              END-IF
+           END-PERFORM.
+
+           EXIT.
+
+       END PROGRAM FINAL-PROJECT.
