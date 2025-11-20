@@ -3,6 +3,11 @@
       * Date:        2025
       * Purpose:     Employee Data Management System
       * Tectonics:   cobc
+
+      * Group members:
+      * 6621600143 kunakorn
+      * 6621600321 Naphatsorn
+      * 6621604700 Aswanee
       ******************************************************************
        IDENTIFICATION DIVISION.
        PROGRAM-ID. FINAL-PROJECT.
@@ -32,7 +37,7 @@
        FD USER-FILE.
        01 USER-RECORD.
            05 USER-NAME    PIC X(15).
-           05 USER-PASS    PIC X(10).
+           05 USER-PASS    PIC X(8).
            05 USER-ROLE    PIC X(7).
 
        FD EMPLOYEE-MASTER-FILE.
@@ -77,8 +82,8 @@
 
        01 LOG-IN-FUNCTION.
            05 INPUT-LOG-IN.
-               10 LOGIN-USERNAME   PIC X(15).
-               10 LOGIN-PASS       PIC X(8).
+               10 LOGIN-USERNAME   PIC X(16).
+               10 LOGIN-PASS       PIC X(9).
            05 WS-LOG-IN.
                10 NOW-USER     PIC X(15).
                10 NOW-ROLE     PIC X(7).
@@ -1268,7 +1273,7 @@
 
               MOVE SPACES TO DEPT-REPORT-FILE-RECORD
               STRING "[" DELIMITED BY SIZE
-              FUNCTION UPPER-CASE(WS-PREV-DEPT)
+              FUNCTION UPPER-CASE(WS-PREV-DEPT) DELIMITED BY SIZE
               "]" DELIMITED BY SIZE
               INTO DEPT-REPORT-FILE-RECORD
               WRITE DEPT-REPORT-FILE-RECORD
